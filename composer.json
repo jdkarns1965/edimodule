@@ -1,0 +1,45 @@
+{
+    "name": "greenfield/edimodule",
+    "description": "EDI Processing Module for Greenfield Precision Plastics - SFTP Integration with phpseclib",
+    "type": "project",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Greenfield Precision Plastics",
+            "email": "admin@greenfieldplastics.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "phpseclib/phpseclib": "^3.0",
+        "vlucas/phpdotenv": "^5.5",
+        "phpoffice/phpspreadsheet": "^1.29"
+    },
+    "autoload": {
+        "psr-4": {
+            "Greenfield\\EDI\\": "src/classes/"
+        },
+        "classmap": [
+            "src/classes/TSVImporter.php",
+            "src/classes/EDI862Parser.php"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "classmap-authoritative": true,
+        "allow-plugins": {
+            "composer/installers": true
+        },
+        "platform": {
+            "ext-gd": "1.0"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "scripts": {
+        "test": "echo 'No test suite configured yet'",
+        "post-install-cmd": [
+            "echo 'EDI Module dependencies installed successfully'"
+        ]
+    }
+}

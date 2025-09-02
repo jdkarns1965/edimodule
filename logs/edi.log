@@ -1,0 +1,37 @@
+[2025-09-02 16:57:19] [INFO] SFTP services initialized
+[2025-09-02 16:57:30] [INFO] Running single monitoring cycle
+[2025-09-02 16:57:33] [ERROR] SFTP download failed: SFTP login failed
+[2025-09-02 16:57:33] [INFO] Processing file: test_862.edi
+[2025-09-02 12:57:33] [ERROR] EDI processing error for /var/www/html/edimodule/data/inbox/test_862.edi: Invalid EDI structure - missing required envelope segments
+[2025-09-02 12:57:33] [INFO] Moved to error folder: test_862.edi
+[2025-09-02 12:57:33] [ERROR] Failed to process: test_862.edi
+[2025-09-02 16:57:53] [INFO] SFTP services initialized
+[2025-09-02 16:58:05] [INFO] Running single monitoring cycle
+[2025-09-02 16:58:08] [ERROR] SFTP download failed: SFTP login failed
+[2025-09-02 16:58:08] [INFO] Processing file: test_862_complete.edi
+[2025-09-02 12:58:08] [WARNING] Database logging error: PDO::__construct(): Argument #1 ($dsn) must be a valid data source name
+[2025-09-02 12:58:08] [INFO] Moved to processed: test_862_complete.edi
+[2025-09-02 12:58:08] [INFO] Successfully processed: test_862_complete.edi
+[2025-09-02 18:16:28] [INFO] SFTP services initialized
+[2025-09-02 18:17:04] [INFO] SFTP services initialized
+[2025-09-02 18:17:16] [INFO] SFTP services initialized
+[2025-09-02 18:18:51] [INFO] SFTP services initialized
+[2025-09-02 18:21:04] [INFO] SFTP services initialized
+[2025-09-02 18:23:08] [INFO] SFTP services initialized
+[2025-09-02 18:23:35] [INFO] SFTP services initialized
+[2025-09-02 18:23:42] [INFO] SFTP services initialized
+[2025-09-02 18:25:58] [INFO] SFTP services initialized
+[2025-09-02 18:26:02] [INFO] SFTP services initialized
+[2025-09-02 18:26:06] [INFO] SFTP services initialized
+[2025-09-02 18:33:56] [INFO] SFTP services initialized
+[2025-09-02 18:34:15] [INFO] SFTP services initialized
+[2025-09-02 18:34:56] [INFO] SFTP services initialized
+[2025-09-02 18:39:33] [INFO] SFTP services initialized
+[2025-09-02 18:39:48] [INFO] SFTP services initialized
+[2025-09-02 18:49:29] [INFO] SFTP services initialized
+[2025-09-02 19:03:56] [INFO] SFTP services initialized
+[2025-09-02 19:05:52] [INFO] SFTP services initialized
+[2025-09-02 19:06:19] [INFO] SFTP services initialized
+[2025-09-02 19:06:46] [INFO] SFTP services initialized
+[2025-09-02 19:07:03] [INFO] SFTP services initialized
+[2025-09-02 19:07:18] [INFO] SFTP services initialized
