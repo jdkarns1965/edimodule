@@ -108,6 +108,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $customerId = $_GET['customer_id'] ?? '';
 $poNumber = $_GET['po_number'] ?? '';
 $partNumber = $_GET['part_number'] ?? '';
+$locationId = $_GET['location_id'] ?? '';
+$dateFrom = $_GET['date_from'] ?? '';
+$dateTo = $_GET['date_to'] ?? '';
 
 // Get customers
 $customersStmt = $db->getConnection()->query("SELECT id, name, partner_code FROM trading_partners ORDER BY name");
@@ -140,6 +143,21 @@ if ($partNumber) {
     $params[] = '%' . $partNumber . '%';
 }
 
+if ($locationId) {
+    $sql .= " AND ds.ship_to_location_id = ?";
+    $params[] = $locationId;
+}
+
+if ($dateFrom) {
+    $sql .= " AND ds.promised_date >= ?";
+    $params[] = $dateFrom;
+}
+
+if ($dateTo) {
+    $sql .= " AND ds.promised_date <= ?";
+    $params[] = $dateTo;
+}
+
 $sql .= " ORDER BY ds.promised_date, ds.supplier_item";
 
 $stmt = $db->getConnection()->prepare($sql);
@@ -159,7 +177,17 @@ $recentShipmentsStmt = $db->getConnection()->query("
 ");
 $recentShipments = $recentShipmentsStmt->fetchAll();
 
-// Get ship-to locations for selected customer
+// Get ship-to locations for all customers (for filter dropdown)
+$allLocationsStmt = $db->getConnection()->query(
+    "SELECT sl.*, tp.name as customer_name 
+     FROM ship_to_locations sl 
+     JOIN trading_partners tp ON sl.partner_id = tp.id 
+     WHERE sl.active = 1 
+     ORDER BY tp.name, sl.location_description"
+);
+$allLocations = $allLocationsStmt->fetchAll();
+
+// Get ship-to locations for selected customer (for shipment creation)
 $shipToLocations = [];
 if ($customerId) {
     $locStmt = $db->getConnection()->prepare("SELECT * FROM ship_to_locations WHERE partner_id = ? AND active = 1");
@@ -200,7 +228,7 @@ if ($customerId) {
 <?php endif; ?>
 
 <!-- Active Filters -->
-<?php if ($customerId || $poNumber || $partNumber): ?>
+<?php if ($customerId || $poNumber || $partNumber || $locationId || $dateFrom || $dateTo): ?>
 <div class="row mb-3">
     <div class="col-12">
         <div class="alert alert-info d-flex align-items-center">
@@ -215,6 +243,15 @@ if ($customerId) {
                 <?php endif; ?>
                 <?php if ($partNumber): ?>
                     <span class="badge bg-secondary ms-1">Part: <?= htmlspecialchars($partNumber) ?></span>
+                <?php endif; ?>
+                <?php if ($locationId): ?>
+                    <span class="badge bg-info ms-1">Location: <?= htmlspecialchars(array_column($allLocations, 'location_description', 'id')[$locationId] ?? 'Unknown') ?></span>
+                <?php endif; ?>
+                <?php if ($dateFrom): ?>
+                    <span class="badge bg-warning ms-1">From: <?= htmlspecialchars($dateFrom) ?></span>
+                <?php endif; ?>
+                <?php if ($dateTo): ?>
+                    <span class="badge bg-warning ms-1">To: <?= htmlspecialchars($dateTo) ?></span>
                 <?php endif; ?>
             </div>
             <a href="?page=build_shipment" class="btn btn-sm btn-outline-secondary">Clear Filters</a>
@@ -238,7 +275,7 @@ if ($customerId) {
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="selectAll">
                             <label class="form-check-label" for="selectAll">
-                                <strong>Select All Items</strong>
+                                <strong>Select All Filtered Results</strong> <span class="text-muted">(<?= count($availableItems) ?> items)</span>
                             </label>
                         </div>
                     </div>
@@ -391,33 +428,85 @@ if ($customerId) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="customer_id" class="form-label">Customer</label>
-                        <select class="form-select" id="customer_id" name="customer_id">
-                            <option value="">All Customers</option>
-                            <?php foreach ($customers as $customer): ?>
-                            <option value="<?= $customer['id'] ?>" <?= $customerId == $customer['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($customer['name']) ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="customer_id" class="form-label">Customer</label>
+                                <select class="form-select" id="customer_id" name="customer_id">
+                                    <option value="">All Customers</option>
+                                    <?php foreach ($customers as $customer): ?>
+                                    <option value="<?= $customer['id'] ?>" <?= $customerId == $customer['id'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($customer['name']) ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="location_id" class="form-label">Ship-To Location</label>
+                                <select class="form-select" id="location_id" name="location_id">
+                                    <option value="">All Locations</option>
+                                    <?php foreach ($allLocations as $location): ?>
+                                    <option value="<?= $location['id'] ?>" <?= $locationId == $location['id'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($location['customer_name'] . ' - ' . $location['location_description'] . ' (' . $location['location_code'] . ')') ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="po_number" class="form-label">PO Number</label>
-                        <input type="text" class="form-control" id="po_number" name="po_number" 
-                               value="<?= htmlspecialchars($poNumber) ?>" placeholder="Search PO numbers...">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="po_number" class="form-label">PO Number</label>
+                                <input type="text" class="form-control" id="po_number" name="po_number" 
+                                       value="<?= htmlspecialchars($poNumber) ?>" placeholder="Search PO numbers...">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="part_number" class="form-label">Part Number</label>
+                                <input type="text" class="form-control" id="part_number" name="part_number" 
+                                       value="<?= htmlspecialchars($partNumber) ?>" placeholder="Search part numbers...">
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="part_number" class="form-label">Part Number</label>
-                        <input type="text" class="form-control" id="part_number" name="part_number" 
-                               value="<?= htmlspecialchars($partNumber) ?>" placeholder="Search part numbers...">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="date_from" class="form-label">Date From</label>
+                                <input type="date" class="form-control" id="date_from" name="date_from" 
+                                       value="<?= htmlspecialchars($dateFrom) ?>">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="date_to" class="form-label">Date To</label>
+                                <input type="date" class="form-control" id="date_to" name="date_to" 
+                                       value="<?= htmlspecialchars($dateTo) ?>">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-light border">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Use filters to narrow down available items for easier shipment building. 
+                            Date filters apply to the promised delivery dates.
+                        </small>
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <a href="?page=build_shipment" class="btn btn-outline-danger me-auto">
+                        <i class="bi bi-x-circle me-1"></i>Clear All Filters
+                    </a>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-funnel me-1"></i>Apply Filters
+                    </button>
                 </div>
             </form>
         </div>
@@ -535,6 +624,7 @@ document.getElementById('selectAll').addEventListener('change', function() {
     const checkboxes = document.querySelectorAll('.item-checkbox');
     checkboxes.forEach(checkbox => checkbox.checked = this.checked);
     updateSelectedItems();
+    updateSelectAllLabel();
 });
 
 // Update selected items display
@@ -543,6 +633,19 @@ function updateSelectedItems() {
     const count = selected.length;
     
     document.getElementById('selectedItemsCount').textContent = count;
+    
+    // Update button state
+    const createButton = document.querySelector('button[onclick="showCreateShipmentModal()"]');
+    if (createButton) {
+        createButton.disabled = count === 0;
+        if (count === 0) {
+            createButton.classList.add('btn-outline-secondary');
+            createButton.classList.remove('btn-success');
+        } else {
+            createButton.classList.remove('btn-outline-secondary');
+            createButton.classList.add('btn-success');
+        }
+    }
     
     // Auto-populate shipment form with common data from selected items
     if (count > 0) {
@@ -563,7 +666,75 @@ function updateSelectedItems() {
         if (poInput && poNumber) {
             poInput.value = poNumber;
         }
+        
+        // Update selected items list preview
+        updateSelectedItemsPreview(selected);
     }
+}
+
+// Update select all label based on current state
+function updateSelectAllLabel() {
+    const checkboxes = document.querySelectorAll('.item-checkbox');
+    const checkedBoxes = document.querySelectorAll('.item-checkbox:checked');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const selectAllLabel = document.querySelector('label[for="selectAll"]');
+    
+    if (checkedBoxes.length === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllLabel.innerHTML = `<strong>Select All Filtered Results</strong> <span class="text-muted">(${checkboxes.length} items)</span>`;
+    } else if (checkedBoxes.length === checkboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllLabel.innerHTML = `<strong>All Items Selected</strong> <span class="text-success">(${checkedBoxes.length} items)</span>`;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+        selectAllLabel.innerHTML = `<strong>Selected: ${checkedBoxes.length} of ${checkboxes.length}</strong> <span class="text-primary">(partial selection)</span>`;
+    }
+}
+
+// Update selected items preview in modal
+function updateSelectedItemsPreview(selected) {
+    const previewContainer = document.getElementById('selectedItemsList');
+    if (!previewContainer) return;
+    
+    if (selected.length === 0) {
+        previewContainer.innerHTML = '<span class="text-muted">No items selected</span>';
+        return;
+    }
+    
+    let previewHtml = '<div class="row g-2">';
+    let itemCount = 0;
+    
+    selected.forEach((checkbox, index) => {
+        if (itemCount >= 6) return; // Show max 6 items in preview
+        
+        const row = checkbox.closest('tr');
+        const partNumber = row.children[3].textContent.trim();
+        const customer = row.children[1].textContent.trim();
+        const quantity = row.children[5].textContent.trim();
+        
+        previewHtml += `
+            <div class="col-md-6">
+                <div class="border rounded p-2">
+                    <small><strong>${partNumber}</strong></small><br>
+                    <small class="text-muted">${customer} • Qty: ${quantity}</small>
+                </div>
+            </div>
+        `;
+        itemCount++;
+    });
+    
+    if (selected.length > 6) {
+        previewHtml += `
+            <div class="col-12">
+                <div class="text-center text-muted">
+                    <small>... and ${selected.length - 6} more items</small>
+                </div>
+            </div>
+        `;
+    }
+    
+    previewHtml += '</div>';
+    previewContainer.innerHTML = previewHtml;
 }
 
 // Customer change handler for locations
@@ -623,6 +794,65 @@ function showCreateShipmentModal() {
 
 // Add event listeners to checkboxes
 document.querySelectorAll('.item-checkbox').forEach(checkbox => {
-    checkbox.addEventListener('change', updateSelectedItems);
+    checkbox.addEventListener('change', function() {
+        updateSelectedItems();
+        updateSelectAllLabel();
+    });
 });
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateSelectedItems();
+    updateSelectAllLabel();
+    
+    // Add filter shortcut buttons
+    const filterForm = document.querySelector('#filterModal form');
+    const quickFilterButtons = document.createElement('div');
+    quickFilterButtons.className = 'mb-3';
+    quickFilterButtons.innerHTML = `
+        <label class="form-label">Quick Filters:</label><br>
+        <div class="btn-group-sm" role="group">
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDateFilter('today')">Today</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDateFilter('week')">This Week</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDateFilter('month')">This Month</button>
+        </div>
+    `;
+    
+    // Insert before the date inputs
+    const dateFromDiv = document.getElementById('date_from').closest('.col-md-6');
+    if (dateFromDiv && dateFromDiv.parentElement) {
+        dateFromDiv.parentElement.parentElement.insertBefore(quickFilterButtons, dateFromDiv.parentElement);
+    }
+});
+
+// Quick date filter functions
+function setDateFilter(period) {
+    const today = new Date();
+    const dateFromInput = document.getElementById('date_from');
+    const dateToInput = document.getElementById('date_to');
+    
+    switch(period) {
+        case 'today':
+            const todayStr = today.toISOString().split('T')[0];
+            dateFromInput.value = todayStr;
+            dateToInput.value = todayStr;
+            break;
+        case 'week':
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - today.getDay());
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
+            
+            dateFromInput.value = weekStart.toISOString().split('T')[0];
+            dateToInput.value = weekEnd.toISOString().split('T')[0];
+            break;
+        case 'month':
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            
+            dateFromInput.value = monthStart.toISOString().split('T')[0];
+            dateToInput.value = monthEnd.toISOString().split('T')[0];
+            break;
+    }
+}
 </script>
