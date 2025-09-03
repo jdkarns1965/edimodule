@@ -41,23 +41,46 @@ $page = $_GET['page'] ?? 'dashboard';
                 <a class="nav-link <?= $page == 'dashboard' ? 'active' : '' ?>" href="?page=dashboard">
                     <i class="bi bi-speedometer2 me-1"></i>Dashboard
                 </a>
-                <a class="nav-link <?= $page == 'import' ? 'active' : '' ?>" href="?page=import">
-                    <i class="bi bi-upload me-1"></i>Import Data
-                </a>
-                <a class="nav-link <?= $page == 'schedules' ? 'active' : '' ?>" href="?page=schedules">
-                    <i class="bi bi-calendar me-1"></i>Schedules
-                </a>
-                <a class="nav-link <?= $page == 'transactions' ? 'active' : '' ?>" href="?page=transactions">
-                    <i class="bi bi-file-text me-1"></i>Transactions
-                </a>
+                
+                <!-- ERP Management Section -->
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle <?= in_array($page, ['customers', 'inventory', 'build_shipment']) ? 'active' : '' ?>" 
+                       href="#" id="erpDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-building me-1"></i>ERP Management
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item <?= $page == 'customers' ? 'active' : '' ?>" href="?page=customers">
+                            <i class="bi bi-people me-1"></i>Customer Management</a></li>
+                        <li><a class="dropdown-item <?= $page == 'inventory' ? 'active' : '' ?>" href="?page=inventory">
+                            <i class="bi bi-boxes me-1"></i>Inventory Management</a></li>
+                        <li><a class="dropdown-item <?= $page == 'build_shipment' ? 'active' : '' ?>" href="?page=build_shipment">
+                            <i class="bi bi-truck me-1"></i>Shipment Builder</a></li>
+                    </ul>
+                </div>
+                
+                <!-- EDI Processing Section -->
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle <?= in_array($page, ['schedules', 'transactions', 'import', 'part_master', 'delivery_matrix']) ? 'active' : '' ?>" 
+                       href="#" id="ediDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-arrow-left-right me-1"></i>EDI Processing
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item <?= $page == 'schedules' ? 'active' : '' ?>" href="?page=schedules">
+                            <i class="bi bi-calendar me-1"></i>Delivery Schedules</a></li>
+                        <li><a class="dropdown-item <?= $page == 'import' ? 'active' : '' ?>" href="?page=import">
+                            <i class="bi bi-upload me-1"></i>Import Data</a></li>
+                        <li><a class="dropdown-item <?= $page == 'part_master' ? 'active' : '' ?>" href="?page=part_master">
+                            <i class="bi bi-gear me-1"></i>Part Master</a></li>
+                        <li><a class="dropdown-item <?= $page == 'delivery_matrix' ? 'active' : '' ?>" href="?page=delivery_matrix">
+                            <i class="bi bi-table me-1"></i>Delivery Matrix</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item <?= $page == 'transactions' ? 'active' : '' ?>" href="?page=transactions">
+                            <i class="bi bi-file-text me-1"></i>EDI Transactions</a></li>
+                    </ul>
+                </div>
+                
                 <a class="nav-link <?= $page == 'sftp' ? 'active' : '' ?>" href="?page=sftp">
                     <i class="bi bi-cloud-arrow-down me-1"></i>SFTP
-                </a>
-                <a class="nav-link <?= $page == 'part_master' ? 'active' : '' ?>" href="?page=part_master">
-                    <i class="bi bi-gear me-1"></i>Part Master
-                </a>
-                <a class="nav-link <?= $page == 'delivery_matrix' ? 'active' : '' ?>" href="?page=delivery_matrix">
-                    <i class="bi bi-table me-1"></i>Delivery Matrix
                 </a>
             </div>
         </div>
@@ -69,17 +92,27 @@ $page = $_GET['page'] ?? 'dashboard';
             case 'dashboard':
                 include '../templates/dashboard.php';
                 break;
-            case 'import':
-                include '../templates/import.php';
+            
+            // ERP Management Pages
+            case 'customers':
+                include '../templates/customers.php';
                 break;
+            case 'inventory':
+                include '../templates/inventory.php';
+                break;
+            case 'build_shipment':
+                include '../templates/build_shipment.php';
+                break;
+                
+            // EDI Processing Pages
             case 'schedules':
                 include '../templates/schedules.php';
                 break;
+            case 'import':
+                include '../templates/import.php';
+                break;
             case 'transactions':
                 include '../templates/transactions.php';
-                break;
-            case 'sftp':
-                include '../templates/sftp.php';
                 break;
             case 'part_master':
                 include '../templates/part_master.php';
@@ -87,6 +120,12 @@ $page = $_GET['page'] ?? 'dashboard';
             case 'delivery_matrix':
                 include '../templates/delivery_matrix.php';
                 break;
+                
+            // System Pages
+            case 'sftp':
+                include '../templates/sftp.php';
+                break;
+                
             default:
                 include '../templates/dashboard.php';
         }

@@ -1,4 +1,33 @@
 <?php
+require_once '../classes/ExcelExportService.php';
+
+$exportService = new ExcelExportService();
+
+// Handle export requests
+if (isset($_GET['export'])) {
+    try {
+        $format = $_GET['format'] ?? 'xlsx';
+        $customerId = $_GET['partner'] ?? null;
+        $dateRange = null;
+        
+        if (!empty($_GET['start_date']) && !empty($_GET['end_date'])) {
+            $dateRange = [
+                'start' => $_GET['start_date'],
+                'end' => $_GET['end_date']
+            ];
+        }
+        
+        $result = $exportService->exportDeliverySchedule($customerId, $dateRange, $format);
+        
+        if ($result['success']) {
+            header('Location: ../../' . $result['download_url']);
+            exit;
+        }
+    } catch (Exception $e) {
+        $error = "Export failed: " . $e->getMessage();
+    }
+}
+
 $page = max(1, (int)($_GET['p'] ?? 1));
 $limit = 50;
 $offset = ($page - 1) * $limit;
@@ -128,6 +157,27 @@ try {
             Schedules (<?= number_format($totalRecords) ?> records)
         </h5>
         <div class="btn-group btn-group-sm">
+            <div class="btn-group">
+                <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="bi bi-download me-1"></i>Export to Excel
+                </button>
+                <ul class="dropdown-menu">
+                    <li><h6 class="dropdown-header">Current View</h6></li>
+                    <li><a class="dropdown-item" href="?page=schedules&export=1&format=xlsx&search=<?= urlencode($search) ?>&status=<?= urlencode($status) ?>&partner=<?= urlencode($partner) ?>">
+                        <i class="bi bi-file-excel me-1"></i>Excel (.xlsx)</a></li>
+                    <li><a class="dropdown-item" href="?page=schedules&export=1&format=csv&search=<?= urlencode($search) ?>&status=<?= urlencode($status) ?>&partner=<?= urlencode($partner) ?>">
+                        <i class="bi bi-file-text me-1"></i>CSV</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><h6 class="dropdown-header">All Active Schedules</h6></li>
+                    <li><a class="dropdown-item" href="?page=schedules&export=1&format=xlsx">
+                        <i class="bi bi-file-excel me-1"></i>All Active (Excel)</a></li>
+                    <li><a class="dropdown-item" href="?page=schedules&export=1&format=csv">
+                        <i class="bi bi-file-text me-1"></i>All Active (CSV)</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#customExportModal">
+                        <i class="bi bi-gear me-1"></i>Custom Export Options</a></li>
+                </ul>
+            </div>
             <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
                 <i class="bi bi-printer me-1"></i>Print
             </button>
@@ -277,10 +327,109 @@ try {
     </div>
 </div>
 
+<!-- Custom Export Modal -->
+<div class="modal fade" id="customExportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="GET">
+                <input type="hidden" name="page" value="schedules">
+                <input type="hidden" name="export" value="1">
+                <div class="modal-header">
+                    <h5 class="modal-title">Custom Export Options</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Export Format</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="format" value="xlsx" id="format_xlsx" checked>
+                            <label class="form-check-label" for="format_xlsx">
+                                <i class="bi bi-file-excel me-1 text-success"></i>Excel (.xlsx) - Recommended for M365 templates
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="format" value="csv" id="format_csv">
+                            <label class="form-check-label" for="format_csv">
+                                <i class="bi bi-file-text me-1 text-primary"></i>CSV - Universal format
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="export_partner" class="form-label">Customer</label>
+                        <select class="form-select" id="export_partner" name="partner">
+                            <option value="">All Customers</option>
+                            <?php foreach ($partners as $p): ?>
+                            <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label for="start_date" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="start_date" name="start_date" value="<?= date('Y-m-d') ?>">
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label for="end_date" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="end_date" name="end_date" value="<?= date('Y-m-d', strtotime('+30 days')) ?>">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="export_status" class="form-label">Status Filter</label>
+                        <select class="form-select" id="export_status" name="status">
+                            <option value="">All Statuses</option>
+                            <option value="active" selected>Active Only</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="received">Received</option>
+                            <option value="cancelled">Cancelled</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Excel Export Features:</strong>
+                        <ul class="mb-0 mt-2 small">
+                            <li>Formatted headers and styling</li>
+                            <li>Auto-sized columns for readability</li>
+                            <li>Ready for M365 template integration</li>
+                            <li>Includes customer and location details</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-download me-1"></i>Export to Excel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 // Initialize Bootstrap tooltips
 var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
 var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
   return new bootstrap.Tooltip(tooltipTriggerEl)
 })
+
+// Update export button text based on format selection
+document.querySelectorAll('input[name="format"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const button = document.querySelector('#customExportModal .btn-success');
+        if (this.value === 'csv') {
+            button.innerHTML = '<i class="bi bi-download me-1"></i>Export to CSV';
+        } else {
+            button.innerHTML = '<i class="bi bi-download me-1"></i>Export to Excel';
+        }
+    });
+});
 </script>
