@@ -17,8 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $uploadedFile = $_FILES['tsv_file']['tmp_name'];
                 $filename = $_FILES['tsv_file']['name'];
                 
-                if (pathinfo($filename, PATHINFO_EXTENSION) !== 'tsv') {
-                    throw new Exception("Only TSV files are allowed.");
+                $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                if (!in_array($extension, ['tsv', 'csv'])) {
+                    throw new Exception("Only TSV and CSV files are allowed.");
                 }
                 
                 $importer = new TSVImporter();
@@ -109,9 +110,9 @@ try {
                 <form method="POST" enctype="multipart/form-data">
                     <div class="upload-area mb-3" id="uploadArea">
                         <i class="bi bi-cloud-upload display-1 text-muted"></i>
-                        <h5 class="mt-3">Drop your TSV file here or click to browse</h5>
-                        <p class="text-muted">Supported format: Tab-separated values (.tsv)</p>
-                        <input type="file" class="form-control d-none" id="tsv_file" name="tsv_file" accept=".tsv" required>
+                        <h5 class="mt-3">Drop your TSV or CSV file here or click to browse</h5>
+                        <p class="text-muted">Supported formats: Tab-separated (.tsv) or Comma-separated (.csv)</p>
+                        <input type="file" class="form-control d-none" id="tsv_file" name="tsv_file" accept=".tsv,.csv" required>
                         <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('tsv_file').click()">
                             <i class="bi bi-folder2-open me-2"></i>Browse Files
                         </button>

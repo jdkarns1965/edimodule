@@ -6,6 +6,7 @@ class TSVImporter {
     
     private $db;
     private $stats;
+    private $delimiter;
     
     public function __construct() {
         $this->db = DatabaseConfig::getInstance()->getConnection();
@@ -32,8 +33,12 @@ class TSVImporter {
             $partnerId = $this->getPartnerIdByCode('NIFCO');
         }
         
+        // Detect file format and set delimiter
+        $this->delimiter = $this->detectDelimiter($filePath);
+        $fileType = $this->delimiter === "\t" ? 'TSV' : 'CSV';
+        
         $this->resetStats();
-        AppConfig::logInfo("Starting TSV import from: $filePath", ['partner_id' => $partnerId]);
+        AppConfig::logInfo("Starting $fileType import from: $filePath", ['partner_id' => $partnerId, 'delimiter' => $this->delimiter]);
         
         $handle = fopen($filePath, 'r');
         if (!$handle) {
@@ -47,7 +52,7 @@ class TSVImporter {
             $this->validateHeaders($headers);
             
             $lineNumber = 1;
-            while (($row = fgetcsv($handle, 0, "\t")) !== FALSE) {
+            while (($row = fgetcsv($handle, 0, $this->delimiter)) !== FALSE) {
                 $lineNumber++;
                 
                 try {
@@ -88,9 +93,10 @@ class TSVImporter {
     }
     
     private function readHeaders($handle) {
-        $headers = fgetcsv($handle, 0, "\t");
+        $headers = fgetcsv($handle, 0, $this->delimiter);
         if (!$headers) {
-            throw new Exception("Cannot read headers from TSV file");
+            $fileType = $this->delimiter === "\t" ? 'TSV' : 'CSV';
+            throw new Exception("Cannot read headers from $fileType file");
         }
         
         return array_map('trim', $headers);
@@ -158,13 +164,20 @@ class TSVImporter {
     private function parseDate($dateString) {
         $dateString = trim($dateString);
         
+        // Check for Excel serial numbers and give helpful error
+        if (is_numeric($dateString) && $dateString > 1000) {
+            throw new Exception("Date appears to be Excel serial number ($dateString). Please format dates as MM/DD/YYYY or YYYY-MM-DD");
+        }
+        
+        // Handle MM/DD/YYYY format
         if (preg_match('/(\d{1,2})\/(\d{1,2})\/(\d{4})/', $dateString, $matches)) {
             return sprintf('%04d-%02d-%02d', $matches[3], $matches[1], $matches[2]);
         }
         
+        // Try standard strtotime parsing
         $timestamp = strtotime($dateString);
         if ($timestamp === false) {
-            throw new Exception("Invalid date format: $dateString");
+            throw new Exception("Invalid date format: $dateString. Expected formats: MM/DD/YYYY, YYYY-MM-DD, or text dates like '2025-10-06'");
         }
         
         return date('Y-m-d', $timestamp);
@@ -270,6 +283,44 @@ class TSVImporter {
     
     public function getImportStats() {
         return $this->stats;
+    }
+    
+    private function detectDelimiter($filePath) {
+        $handle = fopen($filePath, 'r');
+        if (!$handle) {
+            throw new Exception("Cannot open file for delimiter detection: $filePath");
+        }
+        
+        // Read first few lines to detect delimiter
+        $sampleLines = [];
+        for ($i = 0; $i < 3 && ($line = fgets($handle)) !== FALSE; $i++) {
+            $sampleLines[] = $line;
+        }
+        fclose($handle);
+        
+        if (empty($sampleLines)) {
+            throw new Exception("File is empty: $filePath");
+        }
+        
+        // Check file extension first
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        if ($extension === 'tsv') {
+            return "\t";
+        } elseif ($extension === 'csv') {
+            return ",";
+        }
+        
+        // Analyze content to detect delimiter
+        $tabCount = 0;
+        $commaCount = 0;
+        
+        foreach ($sampleLines as $line) {
+            $tabCount += substr_count($line, "\t");
+            $commaCount += substr_count($line, ",");
+        }
+        
+        // Return the more common delimiter, default to tab for TSV compatibility
+        return ($commaCount > $tabCount) ? "," : "\t";
     }
 }
 ?>
