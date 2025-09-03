@@ -109,6 +109,8 @@ $customerId = $_GET['customer_id'] ?? '';
 $poNumber = $_GET['po_number'] ?? '';
 $partNumber = $_GET['part_number'] ?? '';
 $locationId = $_GET['location_id'] ?? '';
+$dateFilterMode = $_GET['date_filter_mode'] ?? 'range'; // 'exact' or 'range'
+$exactDate = $_GET['exact_date'] ?? '';
 $dateFrom = $_GET['date_from'] ?? '';
 $dateTo = $_GET['date_to'] ?? '';
 
@@ -148,14 +150,20 @@ if ($locationId) {
     $params[] = $locationId;
 }
 
-if ($dateFrom) {
-    $sql .= " AND ds.promised_date >= ?";
-    $params[] = $dateFrom;
-}
-
-if ($dateTo) {
-    $sql .= " AND ds.promised_date <= ?";
-    $params[] = $dateTo;
+// Handle date filtering based on mode
+if ($dateFilterMode === 'exact' && $exactDate) {
+    $sql .= " AND DATE(ds.promised_date) = ?";
+    $params[] = $exactDate;
+} elseif ($dateFilterMode === 'range') {
+    if ($dateFrom) {
+        $sql .= " AND ds.promised_date >= ?";
+        $params[] = $dateFrom;
+    }
+    
+    if ($dateTo) {
+        $sql .= " AND ds.promised_date <= ?";
+        $params[] = $dateTo;
+    }
 }
 
 $sql .= " ORDER BY ds.promised_date, ds.supplier_item";
@@ -228,7 +236,7 @@ if ($customerId) {
 <?php endif; ?>
 
 <!-- Active Filters -->
-<?php if ($customerId || $poNumber || $partNumber || $locationId || $dateFrom || $dateTo): ?>
+<?php if ($customerId || $poNumber || $partNumber || $locationId || $exactDate || $dateFrom || $dateTo): ?>
 <div class="row mb-3">
     <div class="col-12">
         <div class="alert alert-info d-flex align-items-center">
@@ -247,11 +255,15 @@ if ($customerId) {
                 <?php if ($locationId): ?>
                     <span class="badge bg-info ms-1">Location: <?= htmlspecialchars(array_column($allLocations, 'location_description', 'id')[$locationId] ?? 'Unknown') ?></span>
                 <?php endif; ?>
-                <?php if ($dateFrom): ?>
-                    <span class="badge bg-warning ms-1">From: <?= htmlspecialchars($dateFrom) ?></span>
-                <?php endif; ?>
-                <?php if ($dateTo): ?>
-                    <span class="badge bg-warning ms-1">To: <?= htmlspecialchars($dateTo) ?></span>
+                <?php if ($dateFilterMode === 'exact' && $exactDate): ?>
+                    <span class="badge bg-warning ms-1">Exact Date: <?= htmlspecialchars($exactDate) ?></span>
+                <?php elseif ($dateFilterMode === 'range'): ?>
+                    <?php if ($dateFrom): ?>
+                        <span class="badge bg-warning ms-1">From: <?= htmlspecialchars($dateFrom) ?></span>
+                    <?php endif; ?>
+                    <?php if ($dateTo): ?>
+                        <span class="badge bg-warning ms-1">To: <?= htmlspecialchars($dateTo) ?></span>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
             <a href="?page=build_shipment" class="btn btn-sm btn-outline-secondary">Clear Filters</a>
@@ -474,19 +486,57 @@ if ($customerId) {
                         </div>
                     </div>
                     
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="date_from" class="form-label">Date From</label>
-                                <input type="date" class="form-control" id="date_from" name="date_from" 
-                                       value="<?= htmlspecialchars($dateFrom) ?>">
+                    <!-- Date Filtering Section -->
+                    <div class="mb-3">
+                        <label class="form-label">Date Filtering</label>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="btn-group w-100 mb-3" role="group" aria-label="Date filter mode">
+                                    <input type="radio" class="btn-check" name="date_filter_mode" id="date_mode_exact" 
+                                           value="exact" <?= $dateFilterMode === 'exact' ? 'checked' : '' ?>>
+                                    <label class="btn btn-outline-primary" for="date_mode_exact">
+                                        <i class="bi bi-calendar-date me-1"></i>Exact Date
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="date_filter_mode" id="date_mode_range" 
+                                           value="range" <?= $dateFilterMode === 'range' ? 'checked' : '' ?>>
+                                    <label class="btn btn-outline-primary" for="date_mode_range">
+                                        <i class="bi bi-calendar-range me-1"></i>Date Range
+                                    </label>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="date_to" class="form-label">Date To</label>
-                                <input type="date" class="form-control" id="date_to" name="date_to" 
-                                       value="<?= htmlspecialchars($dateTo) ?>">
+                        
+                        <!-- Exact Date Section -->
+                        <div id="exact-date-section" class="row" style="display: <?= $dateFilterMode === 'exact' ? 'block' : 'none' ?>">
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="exact_date" class="form-label">Select Date</label>
+                                    <input type="date" class="form-control" id="exact_date" name="exact_date" 
+                                           value="<?= htmlspecialchars($exactDate) ?>" 
+                                           placeholder="Select specific date for delivery schedules">
+                                    <small class="form-text text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>Shows delivery schedules with exact promised date
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Date Range Section -->
+                        <div id="date-range-section" class="row" style="display: <?= $dateFilterMode === 'range' ? 'flex' : 'none' ?>">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="date_from" class="form-label">Date From</label>
+                                    <input type="date" class="form-control" id="date_from" name="date_from" 
+                                           value="<?= htmlspecialchars($dateFrom) ?>">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="date_to" class="form-label">Date To</label>
+                                    <input type="date" class="form-control" id="date_to" name="date_to" 
+                                           value="<?= htmlspecialchars($dateTo) ?>">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -805,54 +855,140 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSelectedItems();
     updateSelectAllLabel();
     
+    // Add date filter mode toggle handlers
+    const dateFilterRadios = document.querySelectorAll('input[name="date_filter_mode"]');
+    dateFilterRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            toggleDateFilterSections(this.value);
+        });
+    });
+    
     // Add filter shortcut buttons
-    const filterForm = document.querySelector('#filterModal form');
-    const quickFilterButtons = document.createElement('div');
-    quickFilterButtons.className = 'mb-3';
-    quickFilterButtons.innerHTML = `
+    addQuickFilterButtons();
+    
+    // Initialize the correct date filter section visibility
+    const currentMode = document.querySelector('input[name="date_filter_mode"]:checked')?.value || 'range';
+    toggleDateFilterSections(currentMode);
+});
+
+// Toggle between exact date and date range sections
+function toggleDateFilterSections(mode) {
+    const exactSection = document.getElementById('exact-date-section');
+    const rangeSection = document.getElementById('date-range-section');
+    
+    if (mode === 'exact') {
+        exactSection.style.display = 'block';
+        rangeSection.style.display = 'none';
+        // Clear range values when switching to exact mode
+        document.getElementById('date_from').value = '';
+        document.getElementById('date_to').value = '';
+    } else {
+        exactSection.style.display = 'none';
+        rangeSection.style.display = 'flex';
+        // Clear exact date when switching to range mode
+        document.getElementById('exact_date').value = '';
+    }
+    
+    // Update quick filter buttons
+    updateQuickFilterButtons(mode);
+}
+
+// Add quick filter buttons dynamically
+function addQuickFilterButtons() {
+    const dateFilterSection = document.querySelector('.mb-3:has([name="date_filter_mode"])');
+    if (!dateFilterSection) return;
+    
+    const quickFilterDiv = document.createElement('div');
+    quickFilterDiv.id = 'quick-filter-buttons';
+    quickFilterDiv.className = 'mb-3';
+    quickFilterDiv.innerHTML = `
         <label class="form-label">Quick Filters:</label><br>
-        <div class="btn-group-sm" role="group">
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDateFilter('today')">Today</button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDateFilter('week')">This Week</button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDateFilter('month')">This Month</button>
+        <div class="btn-group btn-group-sm" role="group" id="quick-filter-group">
+            <button type="button" class="btn btn-outline-secondary" onclick="setDateFilter('today')">Today</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="setDateFilter('week')">This Week</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="setDateFilter('month')">This Month</button>
         </div>
     `;
     
-    // Insert before the date inputs
-    const dateFromDiv = document.getElementById('date_from').closest('.col-md-6');
-    if (dateFromDiv && dateFromDiv.parentElement) {
-        dateFromDiv.parentElement.parentElement.insertBefore(quickFilterButtons, dateFromDiv.parentElement);
+    // Insert after the date filter mode buttons
+    const modeButtonsDiv = dateFilterSection.querySelector('.btn-group');
+    if (modeButtonsDiv && modeButtonsDiv.parentElement) {
+        modeButtonsDiv.parentElement.insertAdjacentElement('afterend', quickFilterDiv);
     }
-});
+}
+
+// Update quick filter buttons based on current mode
+function updateQuickFilterButtons(mode) {
+    const quickFilterGroup = document.getElementById('quick-filter-group');
+    if (!quickFilterGroup) return;
+    
+    // Update button tooltips and behavior based on mode
+    const buttons = quickFilterGroup.querySelectorAll('button');
+    buttons.forEach(btn => {
+        if (mode === 'exact') {
+            btn.title = `Set exact date filter for ${btn.textContent.toLowerCase()}`;
+        } else {
+            btn.title = `Set date range filter for ${btn.textContent.toLowerCase()}`;
+        }
+    });
+}
 
 // Quick date filter functions
 function setDateFilter(period) {
     const today = new Date();
-    const dateFromInput = document.getElementById('date_from');
-    const dateToInput = document.getElementById('date_to');
+    const currentMode = document.querySelector('input[name="date_filter_mode"]:checked')?.value || 'range';
     
-    switch(period) {
-        case 'today':
-            const todayStr = today.toISOString().split('T')[0];
-            dateFromInput.value = todayStr;
-            dateToInput.value = todayStr;
-            break;
-        case 'week':
-            const weekStart = new Date(today);
-            weekStart.setDate(today.getDate() - today.getDay());
-            const weekEnd = new Date(weekStart);
-            weekEnd.setDate(weekStart.getDate() + 6);
-            
-            dateFromInput.value = weekStart.toISOString().split('T')[0];
-            dateToInput.value = weekEnd.toISOString().split('T')[0];
-            break;
-        case 'month':
-            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-            const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-            
-            dateFromInput.value = monthStart.toISOString().split('T')[0];
-            dateToInput.value = monthEnd.toISOString().split('T')[0];
-            break;
+    if (currentMode === 'exact') {
+        // For exact date mode, set the single date based on period
+        const exactDateInput = document.getElementById('exact_date');
+        let targetDate;
+        
+        switch(period) {
+            case 'today':
+                targetDate = today;
+                break;
+            case 'week':
+                // For exact mode, use start of current week
+                targetDate = new Date(today);
+                targetDate.setDate(today.getDate() - today.getDay());
+                break;
+            case 'month':
+                // For exact mode, use first day of current month
+                targetDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                break;
+        }
+        
+        if (targetDate) {
+            exactDateInput.value = targetDate.toISOString().split('T')[0];
+        }
+    } else {
+        // For range mode, set from/to dates
+        const dateFromInput = document.getElementById('date_from');
+        const dateToInput = document.getElementById('date_to');
+        
+        switch(period) {
+            case 'today':
+                const todayStr = today.toISOString().split('T')[0];
+                dateFromInput.value = todayStr;
+                dateToInput.value = todayStr;
+                break;
+            case 'week':
+                const weekStart = new Date(today);
+                weekStart.setDate(today.getDate() - today.getDay());
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 6);
+                
+                dateFromInput.value = weekStart.toISOString().split('T')[0];
+                dateToInput.value = weekEnd.toISOString().split('T')[0];
+                break;
+            case 'month':
+                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                
+                dateFromInput.value = monthStart.toISOString().split('T')[0];
+                dateToInput.value = monthEnd.toISOString().split('T')[0];
+                break;
+        }
     }
 }
 </script>
