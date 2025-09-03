@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_POST['shipment_number'],
                         $_POST['partner_id'],
                         $_POST['po_number'],
-                        $_POST['ship_to_location_id'],
+                        !empty($_POST['ship_to_location_id']) ? $_POST['ship_to_location_id'] : null,
                         $_POST['ship_date'],
                         $_POST['carrier_scac'],
                         $_POST['carrier_name'],
