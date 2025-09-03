@@ -314,6 +314,7 @@ if ($customerId) {
                                                name="selected_items[]" value="<?= $item['id'] ?>"
                                                data-customer="<?= $item['partner_id'] ?>"
                                                data-location="<?= $item['ship_to_location_id'] ?>"
+                                               data-location-desc="<?= htmlspecialchars($item['location_description'] ?? '') ?>"
                                                data-po="<?= $item['po_number'] ?>">
                                     </td>
                                     <td><small><?= htmlspecialchars($item['customer_name']) ?></small></td>
@@ -701,8 +702,10 @@ function updateSelectedItems() {
     if (count > 0) {
         const firstItem = selected[0];
         const customerId = firstItem.dataset.customer;
-        const locationId = firstItem.dataset.location;
         const poNumber = firstItem.dataset.po;
+        
+        // Analyze ship-to locations
+        const locationData = analyzeSelectedLocations(selected);
         
         // Set customer
         const customerSelect = document.getElementById('shipment_customer');
@@ -716,6 +719,9 @@ function updateSelectedItems() {
         if (poInput && poNumber) {
             poInput.value = poNumber;
         }
+        
+        // Handle ship-to location auto-population
+        handleLocationAutoPopulation(locationData);
         
         // Update selected items list preview
         updateSelectedItemsPreview(selected);
@@ -761,12 +767,14 @@ function updateSelectedItemsPreview(selected) {
         const partNumber = row.children[3].textContent.trim();
         const customer = row.children[1].textContent.trim();
         const quantity = row.children[5].textContent.trim();
+        const location = row.children[6].textContent.trim();
         
         previewHtml += `
             <div class="col-md-6">
                 <div class="border rounded p-2">
                     <small><strong>${partNumber}</strong></small><br>
-                    <small class="text-muted">${customer} • Qty: ${quantity}</small>
+                    <small class="text-muted">${customer} • Qty: ${quantity}</small><br>
+                    <small class="text-info">📍 ${location}</small>
                 </div>
             </div>
         `;
@@ -787,6 +795,92 @@ function updateSelectedItemsPreview(selected) {
     previewContainer.innerHTML = previewHtml;
 }
 
+// Analyze ship-to locations from selected items
+function analyzeSelectedLocations(selectedItems) {
+    const locationMap = new Map();
+    
+    selectedItems.forEach(checkbox => {
+        const locationId = checkbox.dataset.location;
+        const locationDesc = checkbox.dataset.locationDesc;
+        
+        if (locationId && locationId !== 'null' && locationId !== '') {
+            if (locationMap.has(locationId)) {
+                locationMap.get(locationId).count++;
+            } else {
+                locationMap.set(locationId, {
+                    id: locationId,
+                    description: locationDesc,
+                    count: 1
+                });
+            }
+        }
+    });
+    
+    return {
+        totalItems: selectedItems.length,
+        uniqueLocations: locationMap.size,
+        locations: Array.from(locationMap.values()),
+        hasMultipleLocations: locationMap.size > 1,
+        hasSingleLocation: locationMap.size === 1,
+        primaryLocation: locationMap.size === 1 ? Array.from(locationMap.values())[0] : null
+    };
+}
+
+// Handle ship-to location auto-population
+function handleLocationAutoPopulation(locationData) {
+    const locationSelect = document.getElementById('shipment_location');
+    const alertContainer = document.getElementById('selectedItemsList');
+    
+    if (!locationSelect) return;
+    
+    // Clear any existing location warnings
+    const existingWarning = document.getElementById('location-warning');
+    if (existingWarning) {
+        existingWarning.remove();
+    }
+    
+    if (locationData.hasSingleLocation && locationData.primaryLocation) {
+        // Auto-select the single location
+        setTimeout(() => {
+            locationSelect.value = locationData.primaryLocation.id;
+        }, 100); // Small delay to ensure options are loaded
+        
+        // Show success message
+        showLocationMessage('success', 
+            `Ship-to location auto-selected: ${locationData.primaryLocation.description}`, 
+            alertContainer
+        );
+    } else if (locationData.hasMultipleLocations) {
+        // Show warning for multiple locations
+        const locationList = locationData.locations.map(loc => 
+            `${loc.description} (${loc.count} items)`
+        ).join(', ');
+        
+        showLocationMessage('warning', 
+            `Selected items have different ship-to locations: ${locationList}. Please select the appropriate location or create separate shipments.`, 
+            alertContainer
+        );
+    }
+}
+
+// Show location-related message
+function showLocationMessage(type, message, container) {
+    if (!container) return;
+    
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-warning';
+    const iconClass = type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle';
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.id = 'location-warning';
+    messageDiv.className = `alert ${alertClass} mt-2`;
+    messageDiv.innerHTML = `
+        <i class="bi ${iconClass} me-1"></i>
+        <small>${message}</small>
+    `;
+    
+    container.appendChild(messageDiv);
+}
+
 // Customer change handler for locations
 document.getElementById('shipment_customer').addEventListener('change', function() {
     const customerId = this.value;
@@ -794,6 +888,12 @@ document.getElementById('shipment_customer').addEventListener('change', function
     
     // Clear existing options
     locationSelect.innerHTML = '<option value="">Loading...</option>';
+    
+    // Clear any existing location warnings
+    const existingWarning = document.getElementById('location-warning');
+    if (existingWarning) {
+        existingWarning.remove();
+    }
     
     if (customerId) {
         // Fetch locations for customer
@@ -804,6 +904,15 @@ document.getElementById('shipment_customer').addEventListener('change', function
                 data.forEach(location => {
                     locationSelect.innerHTML += `<option value="${location.id}">${location.location_description} (${location.location_code})</option>`;
                 });
+                
+                // Re-trigger location auto-population after locations are loaded
+                const selected = document.querySelectorAll('.item-checkbox:checked');
+                if (selected.length > 0) {
+                    setTimeout(() => {
+                        const locationData = analyzeSelectedLocations(selected);
+                        handleLocationAutoPopulation(locationData);
+                    }, 100);
+                }
             })
             .catch(() => {
                 locationSelect.innerHTML = '<option value="">Select Location</option>';
@@ -839,7 +948,15 @@ function showCreateShipmentModal() {
         form.appendChild(hiddenInput);
     });
     
-    new bootstrap.Modal(document.getElementById('createShipmentModal')).show();
+    // Show modal and trigger location analysis after a short delay
+    const modal = new bootstrap.Modal(document.getElementById('createShipmentModal'));
+    modal.show();
+    
+    // Re-analyze locations when modal opens to ensure fresh data
+    setTimeout(() => {
+        const locationData = analyzeSelectedLocations(selected);
+        handleLocationAutoPopulation(locationData);
+    }, 300);
 }
 
 // Add event listeners to checkboxes
