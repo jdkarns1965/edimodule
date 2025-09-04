@@ -157,8 +157,8 @@ $customers = $db->getConnection()->query($sql)->fetchAll();
     <div class="card-header">
         <h5 class="card-title mb-0">Customer List</h5>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
+    <div class="card-body" style="overflow: visible;">
+        <div class="table-responsive" style="overflow: visible;">
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
                     <tr>
@@ -226,7 +226,7 @@ $customers = $db->getConnection()->query($sql)->fetchAll();
                                     <button class="btn btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" title="Export Customer Data">
                                         <i class="bi bi-download"></i>
                                     </button>
-                                    <ul class="dropdown-menu">
+                                    <ul class="dropdown-menu dropdown-menu-end">
                                         <li><a class="dropdown-item" href="?page=customers&export_customer=<?= $customer['id'] ?>&format=xlsx">
                                             <i class="bi bi-file-excel me-1"></i>Customer Data (Excel)</a></li>
                                         <li><a class="dropdown-item" href="?page=schedules&customer_id=<?= $customer['id'] ?>">
