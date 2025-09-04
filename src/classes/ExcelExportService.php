@@ -5,10 +5,12 @@ require_once __DIR__ . '/../config/database.php';
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Writer\Xls;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 
 class ExcelExportService {
     private $db;
@@ -454,14 +456,14 @@ class ExcelExportService {
         $row++;
         
         foreach ($customers as $customer) {
-            $sheet->setCellValue('A' . $row, $customer['partner_code']);
-            $sheet->setCellValue('B' . $row, $customer['name']);
-            $sheet->setCellValue('C' . $row, $customer['edi_id']);
-            $sheet->setCellValue('D' . $row, $customer['connection_type']);
-            $sheet->setCellValue('E' . $row, strtoupper($customer['status']));
-            $sheet->setCellValue('F' . $row, $customer['active_orders']);
-            $sheet->setCellValue('G' . $row, $customer['locations_count']);
-            $sheet->setCellValue('H' . $row, $customer['contact_email']);
+            $sheet->setCellValue('A' . $row, $customer['partner_code'] ?: '');
+            $sheet->setCellValue('B' . $row, $customer['name'] ?: '');
+            $sheet->setCellValue('C' . $row, $customer['edi_id'] ?: '');
+            $sheet->setCellValue('D' . $row, $customer['connection_type'] ?: '');
+            $sheet->setCellValue('E' . $row, strtoupper($customer['status'] ?: ''));
+            $sheet->setCellValue('F' . $row, $customer['active_orders'] ?: 0);
+            $sheet->setCellValue('G' . $row, $customer['locations_count'] ?: 0);
+            $sheet->setCellValue('H' . $row, $customer['contact_email'] ?: '');
             $row++;
         }
         
@@ -509,10 +511,20 @@ class ExcelExportService {
         $timestamp = date('Y-m-d_H-i-s');
         $filename = $filename . '_' . $timestamp;
         
+        // Set basic metadata
+        $spreadsheet->getProperties()
+            ->setCreator("EDI Module")
+            ->setTitle("Customer Export");
+        
         if ($format === 'csv') {
             $writer = new Csv($spreadsheet);
             $filepath = $uploadsDir . $filename . '.csv';
+        } elseif ($format === 'xls') {
+            // Use older XLS format for better compatibility
+            $writer = new Xls($spreadsheet);
+            $filepath = $uploadsDir . $filename . '.xls';
         } else {
+            // Use standard XLSX format
             $writer = new Xlsx($spreadsheet);
             $filepath = $uploadsDir . $filename . '.xlsx';
         }

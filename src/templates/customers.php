@@ -1,21 +1,82 @@
 <?php
-require_once '../classes/ExcelExportService.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../classes/ExcelExportService.php';
 
+$db = DatabaseConfig::getInstance();
 $exportService = new ExcelExportService();
 
-// Handle export requests
-if (isset($_GET['export'])) {
+// Handle export requests - MUST be at the very beginning
+if (isset($_GET['export']) || isset($_GET['export_customer'])) {
+    // Clear any output buffering
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+    
     try {
         $format = $_GET['format'] ?? 'xlsx';
-        $result = $exportService->exportCustomers($format);
+        
+        if (isset($_GET['export_customer'])) {
+            // Export single customer basic information
+            $customerId = $_GET['export_customer'];
+            // Get single customer data
+            $sql = "SELECT tp.*, 
+                           COUNT(DISTINCT ds.id) as active_orders,
+                           COUNT(DISTINCT sl.id) as locations_count
+                    FROM trading_partners tp
+                    LEFT JOIN delivery_schedules ds ON tp.id = ds.partner_id AND ds.status = 'active'
+                    LEFT JOIN ship_to_locations sl ON tp.id = sl.partner_id AND sl.active = 1
+                    WHERE tp.id = ?
+                    GROUP BY tp.id";
+            $stmt = $db->getConnection()->prepare($sql);
+            $stmt->execute([$customerId]);
+            $customer = $stmt->fetch();
+            
+            if ($customer) {
+                $headers = ['Partner Code', 'Company Name', 'EDI ID', 'Connection Type', 'Status', 'Active Orders', 'Locations', 'Contact Email'];
+                $data = [[
+                    $customer['partner_code'] ?: '',
+                    $customer['name'] ?: '',
+                    $customer['edi_id'] ?: '',
+                    $customer['connection_type'] ?: '',
+                    strtoupper($customer['status'] ?: ''),
+                    $customer['active_orders'] ?: 0,
+                    $customer['locations_count'] ?: 0,
+                    $customer['contact_email'] ?: ''
+                ]];
+                $result = $exportService->exportToCSV($data, $headers, 'customer_' . $customer['partner_code']);
+            } else {
+                throw new Exception("Customer not found");
+            }
+        } else {
+            // Export all customers
+            $result = $exportService->exportCustomers($format);
+        }
         
         if ($result['success']) {
-            header('Location: ../../' . $result['download_url']);
-            exit;
+            // Set appropriate content type based on format
+            if ($format === 'csv') {
+                header('Content-Type: text/csv; charset=utf-8');
+            } elseif ($format === 'xls') {
+                header('Content-Type: application/vnd.ms-excel');
+            } else {
+                header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            }
+            
+            header('Content-Disposition: attachment; filename="' . $result['filename'] . '"');
+            header('Content-Length: ' . filesize($result['filepath']));
+            header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+            header('Pragma: public');
+            
+            readfile($result['filepath']);
+            exit();
+        } else {
+            $error = "Export failed: Export service returned unsuccessful result";
         }
     } catch (Exception $e) {
         $error = "Export failed: " . $e->getMessage();
     }
+    
+    // If we reach here, export failed - continue to show page with error
 }
 
 // Handle customer operations
@@ -66,17 +127,9 @@ $customers = $db->getConnection()->query($sql)->fetchAll();
                 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
                     <i class="bi bi-plus-circle me-1"></i>Add Customer
                 </button>
-                <div class="btn-group">
-                    <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
-                        <i class="bi bi-download me-1"></i>Export to Excel
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="?page=customers&export=1&format=xlsx">
-                            <i class="bi bi-file-excel me-1"></i>Excel (.xlsx)</a></li>
-                        <li><a class="dropdown-item" href="?page=customers&export=1&format=csv">
-                            <i class="bi bi-file-text me-1"></i>CSV</a></li>
-                    </ul>
-                </div>
+                <a href="?page=customers&export=1&format=csv" class="btn btn-outline-primary">
+                    <i class="bi bi-download me-1"></i>Export as CSV
+                </a>
             </div>
         </div>
     </div>
@@ -227,8 +280,9 @@ $customers = $db->getConnection()->query($sql)->fetchAll();
                                         <i class="bi bi-download"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
-                                        <li><a class="dropdown-item" href="?page=customers&export_customer=<?= $customer['id'] ?>&format=xlsx">
-                                            <i class="bi bi-file-excel me-1"></i>Customer Data (Excel)</a></li>
+                                        <li><a class="dropdown-item" href="?page=customers&export_customer=<?= $customer['id'] ?>&format=csv">
+                                            <i class="bi bi-download me-1"></i>Export Customer Data (CSV)</a></li>
+                                        <li><hr class="dropdown-divider"></li>
                                         <li><a class="dropdown-item" href="?page=schedules&customer_id=<?= $customer['id'] ?>">
                                             <i class="bi bi-calendar me-1"></i>View Schedules</a></li>
                                     </ul>
