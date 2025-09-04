@@ -3,3 +3,5 @@
 [2025-09-02 12:57:33] INFO: Starting EDI 862 parsing Context: {"partner_id":1}
 [2025-09-02 12:58:08] INFO: Starting EDI 862 parsing Context: {"partner_id":1}
 [2025-09-02 12:58:08] INFO: EDI 862 parsing completed Context: {"processed":1,"inserted":0,"updated":0,"skipped":1,"errors":[],"start_time":1756832288.330969,"end_time":1756832288.333873,"duration":0}
+[2025-09-03 18:13:56] INFO: Starting TSV import from: /var/www/html/edimodule/sample_data.tsv Context: {"partner_id":1}
+[2025-09-03 18:13:56] INFO: TSV import completed Context: {"processed":66,"inserted":66,"updated":0,"skipped":0,"errors":[],"start_time":1756937636.061982,"end_time":1756937636.150205,"duration":0.09}
