@@ -1,0 +1,54 @@
+---
+deployment:
+  tasks:
+    # Deploy application files to public_html
+    - export DEPLOYPATH=/home/username/public_html/edimodule
+    - /bin/cp -R * $DEPLOYPATH/
+    
+    # Set proper file permissions
+    - find $DEPLOYPATH -type f -name "*.php" -exec chmod 755 {} \;
+    - find $DEPLOYPATH -type f -name "*.html" -exec chmod 755 {} \;
+    - find $DEPLOYPATH -type f -name "*.css" -exec chmod 755 {} \;
+    - find $DEPLOYPATH -type f -name "*.js" -exec chmod 755 {} \;
+    - find $DEPLOYPATH -type f -name "*.json" -exec chmod 644 {} \;
+    - find $DEPLOYPATH -type f -name "*.md" -exec chmod 644 {} \;
+    - find $DEPLOYPATH -type f -name "*.txt" -exec chmod 644 {} \;
+    - find $DEPLOYPATH -type f -name "*.env*" -exec chmod 600 {} \;
+    
+    # Set directory permissions
+    - find $DEPLOYPATH -type d -exec chmod 755 {} \;
+    
+    # Set data directories to writable (for EDI processing)
+    - chmod -R 777 $DEPLOYPATH/data/
+    - chmod -R 777 $DEPLOYPATH/data/inbox/
+    - chmod -R 777 $DEPLOYPATH/data/outbox/
+    - chmod -R 777 $DEPLOYPATH/data/processed/
+    - chmod -R 777 $DEPLOYPATH/data/error/
+    - chmod -R 777 $DEPLOYPATH/data/archive/
+    
+    # Make logs directory writable if it exists
+    - if [ -d "$DEPLOYPATH/logs" ]; then chmod -R 777 $DEPLOYPATH/logs/; fi
+    
+    # Install Composer dependencies if composer.json exists
+    - if [ -f "$DEPLOYPATH/composer.json" ]; then cd $DEPLOYPATH && /usr/local/bin/ea-php81 /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader; fi
+    
+    # Create necessary directories if they don't exist
+    - mkdir -p $DEPLOYPATH/data/inbox
+    - mkdir -p $DEPLOYPATH/data/outbox  
+    - mkdir -p $DEPLOYPATH/data/processed
+    - mkdir -p $DEPLOYPATH/data/error
+    - mkdir -p $DEPLOYPATH/data/archive
+    
+    # Set ownership to account user (will be automatically set by cPanel)
+    - chown -R $USER:$USER $DEPLOYPATH
+    
+    # Clean up any .git directories for security
+    - find $DEPLOYPATH -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true
+    - rm -f $DEPLOYPATH/.gitignore 2>/dev/null || true
+    
+    # Remove development files
+    - rm -f $DEPLOYPATH/.env.example 2>/dev/null || true
+    - rm -f $DEPLOYPATH/README.md 2>/dev/null || true
+    
+    # Ensure .htaccess is properly configured
+    - if [ ! -f "$DEPLOYPATH/.htaccess" ]; then echo "RewriteEngine On" > $DEPLOYPATH/.htaccess; echo "DirectoryIndex index.php index.html" >> $DEPLOYPATH/.htaccess; fi
