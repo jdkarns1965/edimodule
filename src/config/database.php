@@ -4,13 +4,38 @@ class DatabaseConfig {
     private static $instance = null;
     private $connection = null;
     
-    private $host = 'localhost';
-    private $database = 'edi_processing';
-    private $username = 'root';
-    private $password = 'passgas1989';
+    private $host;
+    private $database;
+    private $username;
+    private $password;
     private $charset = 'utf8mb4';
     
+    private function loadEnvironmentConfig() {
+        // Load environment variables from .env if available
+        $envFile = __DIR__ . '/../../.env';
+        if (file_exists($envFile)) {
+            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                if (strpos($line, '=') !== false && !str_starts_with($line, '#')) {
+                    list($key, $value) = explode('=', $line, 2);
+                    $key = trim($key);
+                    $value = trim($value, '"\'');
+                    $_ENV[$key] = $value;
+                }
+            }
+        }
+        
+        // Set database configuration from environment or defaults
+        $this->host = $_ENV['DB_HOST'] ?? 'localhost';
+        $this->database = $_ENV['DB_DATABASE'] ?? 'edi_processing';
+        $this->username = $_ENV['DB_USERNAME'] ?? 'root';
+        $this->password = $_ENV['DB_PASSWORD'] ?? 'passgas1989';
+    }
+    
     private function __construct() {
+        // Load environment configuration first
+        $this->loadEnvironmentConfig();
+        
         try {
             $dsn = "mysql:host={$this->host};dbname={$this->database};charset={$this->charset}";
             $options = [

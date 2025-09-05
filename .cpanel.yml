@@ -1,9 +1,12 @@
 ---
 deployment:
   tasks:
-    # Deploy application files to public_html
-    - export DEPLOYPATH=/home/username/public_html/edimodule
+    # Deploy application files to public_html with proper structure
+    - export DEPLOYPATH=/home/username/public_html
     - /bin/cp -R * $DEPLOYPATH/
+    
+    # Move public directory contents to web root
+    - if [ -d "$DEPLOYPATH/src/public" ]; then /bin/cp -R $DEPLOYPATH/src/public/* $DEPLOYPATH/public/; fi
     
     # Set proper file permissions
     - find $DEPLOYPATH -type f -name "*.php" -exec chmod 755 {} \;
@@ -42,11 +45,17 @@ deployment:
     # Set ownership to account user (will be automatically set by cPanel)
     - chown -R $USER:$USER $DEPLOYPATH
     
+    # Setup production environment configuration
+    - if [ -f "$DEPLOYPATH/.env.production" ]; then cp $DEPLOYPATH/.env.production $DEPLOYPATH/.env; fi
+    
+    # Create config directory symlink for proper structure
+    - if [ -d "$DEPLOYPATH/src/config" ] && [ ! -d "$DEPLOYPATH/config" ]; then ln -sf $DEPLOYPATH/src/config $DEPLOYPATH/config; fi
+    
     # Clean up any .git directories for security
     - find $DEPLOYPATH -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true
     - rm -f $DEPLOYPATH/.gitignore 2>/dev/null || true
     
-    # Remove development files
+    # Remove development files (but keep .env.production as template)
     - rm -f $DEPLOYPATH/.env.example 2>/dev/null || true
     - rm -f $DEPLOYPATH/README.md 2>/dev/null || true
     
