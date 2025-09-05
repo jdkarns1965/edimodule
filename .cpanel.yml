@@ -30,7 +30,7 @@ deployment:
     - if [ -d "$DEPLOYPATH/logs" ]; then chmod -R 777 $DEPLOYPATH/logs/; fi
     
     # Install Composer dependencies if composer.json exists
-    - if [ -f "$DEPLOYPATH/composer.json" ]; then cd $DEPLOYPATH && /usr/local/bin/ea-php81 /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader; fi
+    - if [ -f "$DEPLOYPATH/composer.json" ]; then cd $DEPLOYPATH && /usr/local/bin/ea-php83 /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader; fi
     
     # Create necessary directories if they don't exist
     - mkdir -p $DEPLOYPATH/data/inbox
