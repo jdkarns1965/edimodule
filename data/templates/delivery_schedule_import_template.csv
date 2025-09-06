@@ -1,0 +1,3 @@
+PO Number,Supplier Item,Item Description,Quantity Ordered,Quantity Received,Promised Date,Ship-To Location,Supplier Config ID,UOM,Organization,Item Number,Supplier,Carrier,Supplier Location,Need-By Date
+1067045-236,23466,Sample Automotive Part 1,1000,0,9/15/2025,SHELBYVILLE KENTUCKY,,EACH,NIFCO,23466,GREENFIELD PRECISION PLASTICS LLC,,PURCHASE,9/10/2025
+1067046-237,28204,Sample Automotive Part 2,500,0,9/20/2025,CWH WAREHOUSE,,EACH,NIFCO,28204,GREENFIELD PRECISION PLASTICS LLC,,PURCHASE,9/15/2025

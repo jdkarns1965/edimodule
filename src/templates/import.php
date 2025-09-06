@@ -113,7 +113,7 @@ try {
                         <h5 class="mt-3">Drop your TSV or CSV file here or click to browse</h5>
                         <p class="text-muted">Supported formats: Tab-separated (.tsv) or Comma-separated (.csv)</p>
                         <input type="file" class="form-control d-none" id="tsv_file" name="tsv_file" accept=".tsv,.csv" required>
-                        <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('tsv_file').click()">
+                        <button type="button" class="btn btn-outline-primary" onclick="event.stopPropagation(); document.getElementById('tsv_file').click()">
                             <i class="bi bi-folder2-open me-2"></i>Browse Files
                         </button>
                     </div>
@@ -168,6 +168,19 @@ try {
                     <li><i class="bi bi-dash text-muted me-2"></i>Organization</li>
                     <li><i class="bi bi-dash text-muted me-2"></i>Supplier</li>
                 </ul>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-download me-2"></i>Import Template</h5>
+            </div>
+            <div class="card-body text-center">
+                <p class="text-muted">Download a properly formatted CSV template with sample data</p>
+                <a href="download_template.php" 
+                   class="btn btn-outline-primary">
+                    <i class="bi bi-file-earmark-spreadsheet me-2"></i>Download CSV Template
+                </a>
             </div>
         </div>
         
