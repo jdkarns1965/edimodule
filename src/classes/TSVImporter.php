@@ -1,15 +1,18 @@
 <?php
 require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/config/app.php';
+require_once __DIR__ . '/CustomerConfig.php';
 
 class TSVImporter {
     
     private $db;
     private $stats;
     private $delimiter;
+    private $customerConfig;
     
     public function __construct() {
         $this->db = DatabaseConfig::getInstance()->getConnection();
+        $this->customerConfig = new CustomerConfig();
         $this->resetStats();
     }
     
@@ -126,61 +129,47 @@ class TSVImporter {
         
         $data = array_combine($headers, $row);
         
-        if (empty(trim($data['PO Number'])) || empty(trim($data['Supplier Item']))) {
+        // Get customer-specific field mappings and defaults
+        $fieldMappings = $this->customerConfig->getFieldMappings($partnerId);
+        $defaults = $this->customerConfig->getCustomerDefaults($partnerId);
+        
+        // Use field mappings to get data (fallback to original field names if mapping doesn't exist)
+        $poField = array_key_exists($fieldMappings['po_number_field'], $data) ? $fieldMappings['po_number_field'] : 'PO Number';
+        $supplierItemField = array_key_exists($fieldMappings['supplier_item_field'], $data) ? $fieldMappings['supplier_item_field'] : 'Supplier Item';
+        $customerItemField = array_key_exists($fieldMappings['customer_item_field'], $data) ? $fieldMappings['customer_item_field'] : 'Item Number';
+        $descriptionField = array_key_exists($fieldMappings['description_field'], $data) ? $fieldMappings['description_field'] : 'Item Description';
+        $quantityField = array_key_exists($fieldMappings['quantity_field'], $data) ? $fieldMappings['quantity_field'] : 'Quantity Ordered';
+        $promisedDateField = array_key_exists($fieldMappings['promised_date_field'], $data) ? $fieldMappings['promised_date_field'] : 'Promised Date';
+        $shipToField = array_key_exists($fieldMappings['ship_to_field'], $data) ? $fieldMappings['ship_to_field'] : 'Ship-To Location';
+        $uomField = array_key_exists($fieldMappings['uom_field'], $data) ? $fieldMappings['uom_field'] : 'UOM';
+        $organizationField = array_key_exists($fieldMappings['organization_field'], $data) ? $fieldMappings['organization_field'] : 'Organization';
+        $supplierField = array_key_exists($fieldMappings['supplier_field'], $data) ? $fieldMappings['supplier_field'] : 'Supplier';
+        
+        if (empty(trim($data[$poField] ?? '')) || empty(trim($data[$supplierItemField] ?? ''))) {
             return null;
         }
         
-        $poData = $this->parsePONumber($data['PO Number']);
-        $shipToLocationId = $this->getShipToLocationId($partnerId, $data['Ship-To Location']);
+        $poData = $this->customerConfig->parsePONumber($data[$poField], $partnerId);
+        $shipToLocationId = $this->getShipToLocationId($partnerId, $data[$shipToField] ?? '');
         
         return [
             'partner_id' => $partnerId,
             'po_number' => $poData['po_number'],
             'release_number' => $poData['release_number'],
-            'po_line' => $data['PO Number'],
-            'supplier_item' => trim($data['Supplier Item']),
-            'customer_item' => !empty($data['Item Number']) ? trim($data['Item Number']) : trim($data['Supplier Item']),
-            'item_description' => trim($data['Item Description']),
-            'quantity_ordered' => (int) $data['Quantity Ordered'],
+            'po_line' => $data[$poField],
+            'supplier_item' => trim($data[$supplierItemField]),
+            'customer_item' => !empty($data[$customerItemField] ?? '') ? trim($data[$customerItemField]) : trim($data[$supplierItemField]),
+            'item_description' => trim($data[$descriptionField] ?? ''),
+            'quantity_ordered' => (int) ($data[$quantityField] ?? 0),
             'quantity_received' => !empty($data['Quantity Received']) ? (int) $data['Quantity Received'] : 0,
-            'promised_date' => $this->parseDate($data['Promised Date']),
-            'need_by_date' => !empty($data['Need-By Date']) ? $this->parseDate($data['Need-By Date']) : $this->parseDate($data['Promised Date']),
+            'promised_date' => $this->customerConfig->parseDate($data[$promisedDateField], $partnerId),
+            'need_by_date' => !empty($data['Need-By Date']) ? $this->customerConfig->parseDate($data['Need-By Date'], $partnerId) : $this->customerConfig->parseDate($data[$promisedDateField], $partnerId),
             'ship_to_location_id' => $shipToLocationId,
-            'ship_to_description' => trim($data['Ship-To Location']),
-            'uom' => !empty($data['UOM']) ? $data['UOM'] : AppConfig::DEFAULT_UOM,
-            'organization' => !empty($data['Organization']) ? $data['Organization'] : AppConfig::DEFAULT_ORGANIZATION,
-            'supplier' => !empty($data['Supplier']) ? $data['Supplier'] : AppConfig::DEFAULT_SUPPLIER
+            'ship_to_description' => trim($data[$shipToField] ?? ''),
+            'uom' => !empty($data[$uomField] ?? '') ? $data[$uomField] : $defaults['uom'],
+            'organization' => !empty($data[$organizationField] ?? '') ? $data[$organizationField] : $defaults['organization'],
+            'supplier' => !empty($data[$supplierField] ?? '') ? $data[$supplierField] : $defaults['supplier']
         ];
-    }
-    
-    private function parsePONumber($poNumber) {
-        $parts = explode('-', trim($poNumber));
-        return [
-            'po_number' => $parts[0],
-            'release_number' => isset($parts[1]) ? $parts[1] : null
-        ];
-    }
-    
-    private function parseDate($dateString) {
-        $dateString = trim($dateString);
-        
-        // Check for Excel serial numbers and give helpful error
-        if (is_numeric($dateString) && $dateString > 1000) {
-            throw new Exception("Date appears to be Excel serial number ($dateString). Please format dates as MM/DD/YYYY or YYYY-MM-DD");
-        }
-        
-        // Handle MM/DD/YYYY format
-        if (preg_match('/(\d{1,2})\/(\d{1,2})\/(\d{4})/', $dateString, $matches)) {
-            return sprintf('%04d-%02d-%02d', $matches[3], $matches[1], $matches[2]);
-        }
-        
-        // Try standard strtotime parsing
-        $timestamp = strtotime($dateString);
-        if ($timestamp === false) {
-            throw new Exception("Invalid date format: $dateString. Expected formats: MM/DD/YYYY, YYYY-MM-DD, or text dates like '2025-10-06'");
-        }
-        
-        return date('Y-m-d', $timestamp);
     }
     
     private function getPartnerIdByCode($code) {

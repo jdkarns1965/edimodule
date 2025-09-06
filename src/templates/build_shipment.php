@@ -13,7 +13,7 @@ if (isset($_GET['export']) && isset($_GET['shipment_id'])) {
         $result = $exportService->exportShipmentForExcel($shipmentId, $templateType, $format);
         
         if ($result['success']) {
-            header('Location: ../../' . $result['download_url']);
+            header('Location: ' . $result['download_url']);
             exit;
         }
     } catch (Exception $e) {

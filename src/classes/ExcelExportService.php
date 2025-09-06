@@ -535,7 +535,7 @@ class ExcelExportService {
             'success' => true,
             'filename' => basename($filepath),
             'filepath' => $filepath,
-            'download_url' => 'data/exports/' . basename($filepath)
+            'download_url' => 'download.php?file=' . basename($filepath)
         ];
     }
     
@@ -567,7 +567,7 @@ class ExcelExportService {
             'success' => true,
             'filename' => basename($filepath),
             'filepath' => $filepath,
-            'download_url' => 'data/exports/' . basename($filepath)
+            'download_url' => 'download.php?file=' . basename($filepath)
         ];
     }
 }

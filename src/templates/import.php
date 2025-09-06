@@ -1,14 +1,20 @@
 <?php
+require_once dirname(__DIR__) . '/classes/CustomerConfig.php';
+
 $importResult = null;
 $error = null;
+$selectedCustomer = $_POST['customer_id'] ?? ($_GET['customer'] ?? '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        // Get selected customer ID
+        $customerId = $_POST['customer_id'] ?? null;
+        
         if (isset($_POST['import_sample'])) {
             $sampleFile = dirname(dirname(__DIR__)) . '/sample_data.tsv';
             if (file_exists($sampleFile)) {
                 $importer = new TSVImporter();
-                $importResult = $importer->importFromFile($sampleFile);
+                $importResult = $importer->importFromFile($sampleFile, $customerId);
             } else {
                 $error = "Sample data file not found.";
             }
@@ -22,8 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception("Only TSV and CSV files are allowed.");
                 }
                 
+                if (!$customerId) {
+                    throw new Exception("Please select a customer before importing data.");
+                }
+                
                 $importer = new TSVImporter();
-                $importResult = $importer->importFromFile($uploadedFile);
+                $importResult = $importer->importFromFile($uploadedFile, $customerId);
                 
                 $archivePath = AppConfig::getArchivePath() . '/' . date('Y-m-d_H-i-s') . '_' . $filename;
                 move_uploaded_file($uploadedFile, $archivePath);
@@ -40,6 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 try {
     $conn = $db->getConnection();
+    
+    // Get recent imports
     $recentImports = $conn->query("
         SELECT et.*, tp.name as partner_name
         FROM edi_transactions et
@@ -48,8 +60,18 @@ try {
         ORDER BY et.created_at DESC
         LIMIT 10
     ")->fetchAll();
+    
+    // Get active customers for dropdown
+    $customers = $conn->query("
+        SELECT id, partner_code, name, edi_standard
+        FROM trading_partners 
+        WHERE status = 'active'
+        ORDER BY partner_code
+    ")->fetchAll();
+    
 } catch (Exception $e) {
     $recentImports = [];
+    $customers = [];
 }
 ?>
 
@@ -108,6 +130,34 @@ try {
             </div>
             <div class="card-body">
                 <form method="POST" enctype="multipart/form-data">
+                    <!-- Customer Selection -->
+                    <div class="mb-4">
+                        <label for="customer_id" class="form-label">
+                            <i class="bi bi-building me-2"></i>Select Customer *
+                        </label>
+                        <select name="customer_id" id="customer_id" class="form-select" required onchange="updateTemplateInfo()">
+                            <option value="">Choose a customer...</option>
+                            <?php foreach ($customers as $customer): ?>
+                            <option value="<?= $customer['id'] ?>" 
+                                    <?= $selectedCustomer == $customer['id'] ? 'selected' : '' ?>
+                                    data-standard="<?= $customer['edi_standard'] ?>"
+                                    data-code="<?= $customer['partner_code'] ?>">
+                                <?= htmlspecialchars($customer['partner_code']) ?> - <?= htmlspecialchars($customer['name']) ?>
+                                (<?= $customer['edi_standard'] ?>)
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text">
+                            Select the customer/trading partner for this import. Different customers may use different field formats.
+                        </div>
+                        <div id="customerInfo" class="mt-2 d-none">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <span id="customerInfoText"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="upload-area mb-3" id="uploadArea">
                         <i class="bi bi-cloud-upload display-1 text-muted"></i>
                         <h5 class="mt-3">Drop your TSV or CSV file here or click to browse</h5>
@@ -135,10 +185,12 @@ try {
                 <div class="text-center">
                     <h6 class="text-muted mb-3">Or use sample data for testing:</h6>
                     <form method="POST" class="d-inline">
-                        <button type="submit" name="import_sample" class="btn btn-outline-secondary">
+                        <input type="hidden" name="customer_id" id="sampleCustomerId" value="">
+                        <button type="submit" name="import_sample" class="btn btn-outline-secondary" id="sampleBtn" disabled>
                             <i class="bi bi-play-circle me-2"></i>Import Sample Data
                         </button>
                     </form>
+                    <div class="form-text mt-2">Select a customer above to enable sample import</div>
                 </div>
             </div>
         </div>
@@ -219,12 +271,52 @@ try {
 </div>
 
 <script>
+// Customer selection handling
+function updateTemplateInfo() {
+    const customerSelect = document.getElementById('customer_id');
+    const customerInfo = document.getElementById('customerInfo');
+    const customerInfoText = document.getElementById('customerInfoText');
+    const sampleCustomerId = document.getElementById('sampleCustomerId');
+    const sampleBtn = document.getElementById('sampleBtn');
+    const uploadBtn = document.getElementById('uploadBtn');
+    
+    if (customerSelect.value) {
+        const selectedOption = customerSelect.selectedOptions[0];
+        const customerCode = selectedOption.dataset.code;
+        const ediStandard = selectedOption.dataset.standard;
+        
+        customerInfoText.textContent = `Selected: ${customerCode} (${ediStandard} format)`;
+        customerInfo.classList.remove('d-none');
+        
+        sampleCustomerId.value = customerSelect.value;
+        sampleBtn.disabled = false;
+        
+        // Enable upload button if file is also selected
+        const fileInput = document.getElementById('tsv_file');
+        if (fileInput.files.length > 0) {
+            uploadBtn.disabled = false;
+        }
+    } else {
+        customerInfo.classList.add('d-none');
+        sampleCustomerId.value = '';
+        sampleBtn.disabled = true;
+        uploadBtn.disabled = true;
+    }
+}
+
 document.getElementById('tsv_file').addEventListener('change', function() {
     const file = this.files[0];
+    const customerSelect = document.getElementById('customer_id');
+    const uploadBtn = document.getElementById('uploadBtn');
+    
     if (file) {
         document.getElementById('fileName').textContent = file.name;
         document.getElementById('selectedFile').classList.remove('d-none');
-        document.getElementById('uploadBtn').disabled = false;
+        
+        // Only enable upload if customer is also selected
+        if (customerSelect.value) {
+            uploadBtn.disabled = false;
+        }
     }
 });
 

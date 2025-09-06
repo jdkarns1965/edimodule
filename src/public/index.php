@@ -60,7 +60,7 @@ $page = $_GET['page'] ?? 'dashboard';
                 
                 <!-- EDI Processing Section -->
                 <div class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle <?= in_array($page, ['schedules', 'transactions', 'import', 'part_master', 'delivery_matrix']) ? 'active' : '' ?>" 
+                    <a class="nav-link dropdown-toggle <?= in_array($page, ['schedules', 'transactions', 'import', 'part_master', 'delivery_matrix', 'customer_config']) ? 'active' : '' ?>" 
                        href="#" id="ediDropdown" role="button" data-bs-toggle="dropdown">
                         <i class="bi bi-arrow-left-right me-1"></i>EDI Processing
                     </a>
@@ -74,6 +74,8 @@ $page = $_GET['page'] ?? 'dashboard';
                         <li><a class="dropdown-item <?= $page == 'delivery_matrix' ? 'active' : '' ?>" href="?page=delivery_matrix">
                             <i class="bi bi-table me-1"></i>Delivery Matrix</a></li>
                         <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item <?= $page == 'customer_config' ? 'active' : '' ?>" href="?page=customer_config">
+                            <i class="bi bi-gear-wide-connected me-1"></i>Customer EDI Config</a></li>
                         <li><a class="dropdown-item <?= $page == 'transactions' ? 'active' : '' ?>" href="?page=transactions">
                             <i class="bi bi-file-text me-1"></i>EDI Transactions</a></li>
                     </ul>
@@ -119,6 +121,9 @@ $page = $_GET['page'] ?? 'dashboard';
                 break;
             case 'delivery_matrix':
                 include '../templates/delivery_matrix.php';
+                break;
+            case 'customer_config':
+                include '../templates/customer_config.php';
                 break;
                 
             // System Pages
