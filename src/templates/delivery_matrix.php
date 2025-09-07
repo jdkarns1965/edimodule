@@ -8,56 +8,7 @@ use Greenfield\EDI\PartMaster;
 $deliveryMatrix = new DeliveryMatrix($db);
 $partMaster = new PartMaster($db);
 
-// Handle export requests
-if (isset($_POST['action']) && $_POST['action'] === 'export') {
-    $filters = [
-        'location_code' => $_POST['location_code'] ?? '',
-        'part_number' => $_POST['part_number'] ?? '',
-        'po_number' => $_POST['po_number'] ?? '',
-        'date_from' => $_POST['date_from'] ?? '',
-        'date_to' => $_POST['date_to'] ?? '',
-        'status' => $_POST['status'] ?? '',
-        'product_family' => $_POST['product_family'] ?? ''
-    ];
-    
-    $data = $deliveryMatrix->getDeliveryMatrix($filters);
-    $templateType = $_POST['export_template'] ?? 'delivery_matrix';
-    
-    try {
-        $filepath = $deliveryMatrix->exportToExcel($data, $templateType, $filters);
-        
-        // Verify file was created and is readable
-        if (!file_exists($filepath) || !is_readable($filepath)) {
-            throw new Exception('Export file was not created or is not readable');
-        }
-        
-        $filesize = filesize($filepath);
-        if ($filesize === false || $filesize === 0) {
-            throw new Exception('Export file is empty or corrupted');
-        }
-        
-        // Clean any output buffers
-        while (ob_get_level()) {
-            ob_end_clean();
-        }
-        
-        // Set proper headers for Excel download
-        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment; filename="' . basename($filepath) . '"');
-        header('Content-Length: ' . $filesize);
-        header('Cache-Control: no-cache, must-revalidate');
-        header('Pragma: no-cache');
-        header('Expires: 0');
-        
-        // Output file and clean up
-        readfile($filepath);
-        unlink($filepath);
-        exit;
-    } catch (Exception $e) {
-        $error = 'Export failed: ' . $e->getMessage();
-        error_log('Excel export error: ' . $e->getMessage());
-    }
-}
+// Export handling is now done by dedicated export_delivery_matrix.php handler
 
 // Get filter parameters
 $filters = [
@@ -300,50 +251,60 @@ $totalPages = ceil(count($data) / $limit);
 <div class="modal fade" id="exportModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="post">
-                <div class="modal-header">
-                    <h5 class="modal-title">Export to Excel</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" name="action" value="export">
-                    
-                    <!-- Pass current filters to export -->
-                    <?php foreach ($filters as $key => $value): ?>
-                        <?php if (!empty($value)): ?>
-                            <input type="hidden" name="<?= htmlspecialchars($key) ?>" value="<?= htmlspecialchars($value) ?>">
-                        <?php endif; ?>
-                    <?php endforeach; ?>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Export Template</label>
-                        <select name="export_template" class="form-select" required>
-                            <option value="delivery_matrix">Complete Delivery Matrix</option>
-                            <option value="daily_production">Daily Production Plan</option>
-                            <option value="weekly_planning">Weekly Planning Report</option>
-                            <option value="location_specific">Location-Specific Report</option>
-                            <option value="po_specific">PO-Specific Report</option>
-                        </select>
-                        <div class="form-text">
-                            Choose the template that best fits your reporting needs.
-                        </div>
-                    </div>
-                    
-                    <div class="alert alert-info">
-                        <strong>Export will include:</strong><br>
-                        • <?= number_format(count($data)) ?> records matching current filters<br>
-                        • Container calculations using QPC data<br>
-                        • Location-specific PO formatting<br>
-                        • Summary statistics and totals
+            <div class="modal-header">
+                <h5 class="modal-title">Export to Excel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Export Template</label>
+                    <select id="exportTemplate" class="form-select" required>
+                        <option value="delivery_matrix">Complete Delivery Matrix</option>
+                        <option value="daily_production">Daily Production Plan</option>
+                        <option value="weekly_planning">Weekly Planning Report</option>
+                        <option value="location_specific">Location-Specific Report</option>
+                        <option value="po_specific">PO-Specific Report</option>
+                    </select>
+                    <div class="form-text">
+                        Choose the template that best fits your reporting needs.
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-download me-1"></i>Export Excel
-                    </button>
+                
+                <div class="alert alert-info">
+                    <strong>Export will include:</strong><br>
+                    • <?= number_format(count($data)) ?> records matching current filters<br>
+                    • Container calculations using QPC data<br>
+                    • Location-specific PO formatting<br>
+                    • Summary statistics and totals
                 </div>
-            </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="exportDeliveryMatrix()">
+                    <i class="bi bi-download me-1"></i>Export Excel
+                </button>
+            </div>
+            
+            <script>
+            function exportDeliveryMatrix() {
+                const template = document.getElementById('exportTemplate').value;
+                
+                // Build export URL pointing to dedicated export handler
+                const exportUrl = new URL(window.location.origin + '/edimodule/src/public/export_delivery_matrix.php');
+                exportUrl.searchParams.set('export', 'delivery_matrix');
+                exportUrl.searchParams.set('export_template', template);
+                
+                // Add current filters
+                <?php foreach ($filters as $key => $value): ?>
+                    <?php if (!empty($value)): ?>
+                        exportUrl.searchParams.set('<?= htmlspecialchars($key) ?>', '<?= htmlspecialchars($value) ?>');
+                    <?php endif; ?>
+                <?php endforeach; ?>
+                
+                // Redirect to export URL
+                window.location.href = exportUrl.toString();
+            }
+            </script>
         </div>
     </div>
 </div>

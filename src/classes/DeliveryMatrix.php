@@ -508,18 +508,25 @@ class DeliveryMatrix {
     
     private function writeExcelFile($spreadsheet, $filename) {
         try {
-            // Clean filename for safety
+            // Clean filename for safety and add timestamp
             $cleanFilename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $filename);
-            $filepath = sys_get_temp_dir() . '/' . $cleanFilename . '.xlsx';
+            $timestampFilename = $cleanFilename . '_' . date('Y-m-d_H-i-s') . '.xlsx';
+            
+            // Use the same exports directory as shipment builder
+            $exportsDir = dirname(__DIR__, 2) . '/data/exports';
+            $filepath = $exportsDir . '/' . $timestampFilename;
             
             // Create writer and configure
             $writer = new Xlsx($spreadsheet);
             $writer->setPreCalculateFormulas(false);
             
-            // Ensure temp directory is writable
-            $tempDir = sys_get_temp_dir();
-            if (!is_writable($tempDir)) {
-                throw new \Exception('Temporary directory is not writable: ' . $tempDir);
+            // Ensure exports directory exists and is writable
+            if (!is_dir($exportsDir)) {
+                mkdir($exportsDir, 0755, true);
+            }
+            
+            if (!is_writable($exportsDir)) {
+                throw new \Exception('Exports directory is not writable: ' . $exportsDir);
             }
             
             // Save file
@@ -535,7 +542,8 @@ class DeliveryMatrix {
                 throw new \Exception('Excel file is empty');
             }
             
-            return $filepath;
+            // Return the download URL instead of file path
+            return 'download.php?file=' . $timestampFilename;
             
         } catch (\Exception $e) {
             error_log('Excel file creation error: ' . $e->getMessage());

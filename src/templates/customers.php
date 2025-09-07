@@ -68,6 +68,9 @@ if (isset($_GET['export']) || isset($_GET['export_customer'])) {
             header('Pragma: public');
             
             readfile($result['filepath']);
+            
+            // Clean up temporary file
+            unlink($result['filepath']);
             exit();
         } else {
             $error = "Export failed: Export service returned unsuccessful result";

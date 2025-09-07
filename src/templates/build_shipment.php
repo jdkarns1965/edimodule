@@ -3,23 +3,7 @@ require_once '../classes/ExcelExportService.php';
 
 $exportService = new ExcelExportService();
 
-// Handle export requests
-if (isset($_GET['export']) && isset($_GET['shipment_id'])) {
-    try {
-        $shipmentId = $_GET['shipment_id'];
-        $templateType = $_GET['template'] ?? 'packing_list';
-        $format = $_GET['format'] ?? 'xlsx';
-        
-        $result = $exportService->exportShipmentForExcel($shipmentId, $templateType, $format);
-        
-        if ($result['success']) {
-            header('Location: ' . $result['download_url']);
-            exit;
-        }
-    } catch (Exception $e) {
-        $error = "Export failed: " . $e->getMessage();
-    }
-}
+// Export handling is now done by dedicated export_shipment.php handler
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -371,14 +355,14 @@ if ($customerId) {
                                 </button>
                                 <ul class="dropdown-menu">
                                     <li><h6 class="dropdown-header">Excel Exports</h6></li>
-                                    <li><a class="dropdown-item" href="?page=build_shipment&export=1&shipment_id=<?= $shipment['id'] ?>&template=packing_list&format=xlsx">
+                                    <li><a class="dropdown-item" href="export_shipment.php?export=1&shipment_id=<?= $shipment['id'] ?>&template=packing_list&format=xlsx">
                                         <i class="bi bi-file-excel me-1"></i>Packing List</a></li>
-                                    <li><a class="dropdown-item" href="?page=build_shipment&export=1&shipment_id=<?= $shipment['id'] ?>&template=pick_list&format=xlsx">
+                                    <li><a class="dropdown-item" href="export_shipment.php?export=1&shipment_id=<?= $shipment['id'] ?>&template=pick_list&format=xlsx">
                                         <i class="bi bi-list-check me-1"></i>Pick List</a></li>
-                                    <li><a class="dropdown-item" href="?page=build_shipment&export=1&shipment_id=<?= $shipment['id'] ?>&template=bol&format=xlsx">
+                                    <li><a class="dropdown-item" href="export_shipment.php?export=1&shipment_id=<?= $shipment['id'] ?>&template=bol&format=xlsx">
                                         <i class="bi bi-truck me-1"></i>BOL Data</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="?page=build_shipment&export=1&shipment_id=<?= $shipment['id'] ?>&template=packing_list&format=csv">
+                                    <li><a class="dropdown-item" href="export_shipment.php?export=1&shipment_id=<?= $shipment['id'] ?>&template=packing_list&format=csv">
                                         <i class="bi bi-file-text me-1"></i>CSV Export</a></li>
                                 </ul>
                             </div>
@@ -407,15 +391,15 @@ if ($customerId) {
                 <p class="small mb-3">Your shipment has been created. Export data for your M365 templates:</p>
                 
                 <div class="d-grid gap-2">
-                    <a href="?page=build_shipment&export=1&shipment_id=<?= $_GET['created_shipment'] ?>&template=packing_list&format=xlsx" 
+                    <a href="export_shipment.php?export=1&shipment_id=<?= $_GET['created_shipment'] ?>&template=packing_list&format=xlsx" 
                        class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-file-excel me-1"></i>Packing List (Excel)
                     </a>
-                    <a href="?page=build_shipment&export=1&shipment_id=<?= $_GET['created_shipment'] ?>&template=pick_list&format=xlsx" 
+                    <a href="export_shipment.php?export=1&shipment_id=<?= $_GET['created_shipment'] ?>&template=pick_list&format=xlsx" 
                        class="btn btn-outline-info btn-sm">
                         <i class="bi bi-list-check me-1"></i>Pick List (Excel)
                     </a>
-                    <a href="?page=build_shipment&export=1&shipment_id=<?= $_GET['created_shipment'] ?>&template=bol&format=xlsx" 
+                    <a href="export_shipment.php?export=1&shipment_id=<?= $_GET['created_shipment'] ?>&template=bol&format=xlsx" 
                        class="btn btn-outline-success btn-sm">
                         <i class="bi bi-truck me-1"></i>BOL Data (Excel)
                     </a>
