@@ -123,8 +123,21 @@ class TSVImporter {
     }
     
     private function mapRowToData($headers, $row, $partnerId) {
-        if (count($row) !== count($headers)) {
-            throw new Exception("Row column count doesn't match headers");
+        // Handle column count mismatches by padding or trimming
+        $headerCount = count($headers);
+        $rowCount = count($row);
+        
+        if ($rowCount < $headerCount) {
+            // Pad row with empty strings if fewer columns
+            $row = array_pad($row, $headerCount, '');
+        } elseif ($rowCount > $headerCount) {
+            // Trim row if more columns
+            $row = array_slice($row, 0, $headerCount);
+        }
+        
+        // Skip completely empty rows (all values empty or null)
+        if (array_filter($row, function($value) { return !empty(trim($value ?? '')); }) === []) {
+            return null;
         }
         
         $data = array_combine($headers, $row);

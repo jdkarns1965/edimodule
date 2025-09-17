@@ -1,2 +1,40 @@
+# Allow critical backup and setup files
+!data/exports/edi_database_backup_*.sql
+!data/exports/restore_database.sh
+!data/exports/backup_complete_environment.sh
+!data/exports/RESTORE_INSTRUCTIONS.md
+
+# Exclude other exports but keep backup files
 data/exports/*
 !data/exports/.gitkeep
+!data/exports/edi_database_backup_*.sql
+!data/exports/restore_database.sh
+!data/exports/backup_complete_environment.sh
+!data/exports/RESTORE_INSTRUCTIONS.md
+
+# Environment files - keep templates
+.env.local
+.env.*.local
+
+# Logs - keep structure but not log files
+logs/*.log
+!logs/.gitkeep
+
+# Temporary and cache files
+tmp/
+cache/
+*.tmp
+*.temp
+
+# Vendor dependencies (will be restored via composer)
+vendor/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

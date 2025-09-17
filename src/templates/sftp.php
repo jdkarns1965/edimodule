@@ -53,6 +53,27 @@ if ($action) {
                 $messageType = 'danger';
             }
             break;
+            
+        case 'test_cron':
+            // Test cron monitor script
+            $cronScript = __DIR__ . '/../../cron_monitor.php';
+            if (file_exists($cronScript)) {
+                $output = [];
+                $returnCode = 0;
+                exec("php $cronScript 2>&1", $output, $returnCode);
+                
+                if ($returnCode === 0) {
+                    $message = "Cron monitor test successful!<br>" . implode('<br>', array_slice($output, -5));
+                    $messageType = 'success';
+                } else {
+                    $message = "Cron monitor test failed!<br>" . implode('<br>', array_slice($output, -5));
+                    $messageType = 'danger';
+                }
+            } else {
+                $message = 'Cron monitor script not found';
+                $messageType = 'danger';
+            }
+            break;
     }
 }
 
@@ -175,6 +196,27 @@ $recentLogs = $fileMonitor->getRecentLogs(20);
                                 <i class="bi bi-gear me-2"></i>Run Processing Cycle
                             </button>
                         </form>
+                    </div>
+                </div>
+                
+                <!-- GreenGeeks Cron Monitor Controls -->
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-clock me-2"></i>GreenGeeks Cron Monitor</h6>
+                    <p class="mb-2">For production deployment, use cron-based monitoring (15-minute intervals).</p>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <form method="POST" class="d-grid">
+                                <input type="hidden" name="action" value="test_cron">
+                                <button type="submit" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-stopwatch me-2"></i>Test Cron Monitor
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <a href="?page=cron_setup" class="btn btn-sm btn-outline-info d-grid">
+                                <i class="bi bi-gear-wide me-2"></i>Cron Setup Guide
+                            </a>
+                        </div>
                     </div>
                 </div>
                 

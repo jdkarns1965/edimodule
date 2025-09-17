@@ -130,6 +130,9 @@ $page = $_GET['page'] ?? 'dashboard';
             case 'sftp':
                 include '../templates/sftp.php';
                 break;
+            case 'cron_setup':
+                include '../templates/cron_setup.php';
+                break;
                 
             default:
                 include '../templates/dashboard.php';
